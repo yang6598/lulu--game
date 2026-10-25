@@ -374,7 +374,7 @@ const fallback = new THREE.Group();
 let modelReady = false;
 let charSceneRoot = null; // 保留引用，结局动画里克隆出噜妹
 new GLTFLoader().load(
-  'models/character.glb',
+  'models/character-v2.glb',
   (gltf) => {
     const model = gltf.scene;
     const box = new THREE.Box3().setFromObject(model);
@@ -419,7 +419,7 @@ new GLTFLoader().load(
   }
 );
 function loadCharacter() {
-  new GLTFLoader().load('models/character.glb?v=' + Date.now(), (gltf) => {
+  new GLTFLoader().load('models/character-v2.glb?v=' + Date.now(), (gltf) => {
     const model = gltf.scene;
     const box = new THREE.Box3().setFromObject(model);
     const size = box.getSize(new THREE.Vector3());
@@ -444,7 +444,7 @@ function loadCharacter() {
 // ---------- Boss 模型（奶龙）预加载 ----------
 let bossTemplate = null;
 new GLTFLoader().load(
-  'models/boss.glb',
+  'models/boss-v2.glb',
   (gltf) => {
     const m = gltf.scene;
     const box = new THREE.Box3().setFromObject(m);
