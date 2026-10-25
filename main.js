@@ -395,7 +395,6 @@ new GLTFLoader().load(
     modelReady = true;
     applySkin(); // 正式模型加载完，立刻穿上保存的皮肤
   },
-  undefined,
   (p) => { // 加载进度：显示在启动提示层
     const el = document.getElementById('boot-progress');
     if (el && p.total > 0) {
@@ -405,8 +404,42 @@ new GLTFLoader().load(
       el.textContent = `正在加载噜噜模型… ${(p.loaded / 1048576).toFixed(1)}MB`;
     }
   },
-  () => { /* 加载失败继续用备用小人 */ }
+  (err) => { // 加载失败：屏幕上显示具体错误 + 自动重试
+    console.error('[噜噜模型加载失败]', err);
+    const el = document.getElementById('boot-progress');
+    if (el) {
+      el.style.color = '#ff7a6a';
+      el.textContent = '⚠️ 模型加载失败：' + (err && err.message ? err.message : '网络/文件错误') + '，5秒后自动重试…';
+    }
+    setTimeout(() => {
+      const retryEl = document.getElementById('boot-progress');
+      if (retryEl) { retryEl.style.color = '#ffb86a'; retryEl.textContent = '重试加载噜噜模型…'; }
+      loadCharacter();
+    }, 5000);
+  }
 );
+function loadCharacter() {
+  new GLTFLoader().load('models/character.glb?v=' + Date.now(), (gltf) => {
+    const model = gltf.scene;
+    const box = new THREE.Box3().setFromObject(model);
+    const size = box.getSize(new THREE.Vector3());
+    const center = box.getCenter(new THREE.Vector3());
+    const s = 1.6 / Math.max(size.y, 0.001);
+    model.scale.setScalar(s);
+    model.position.x -= center.x * s;
+    model.position.z -= center.z * s;
+    model.position.y -= box.min.y * s;
+    model.rotation.y = Math.PI; // 让角色背对玩家镜头、面朝跑步方向（-z）
+    model.traverse((o) => {
+      if (o.isMesh) { o.castShadow = true; o.frustumCulled = false; }
+    });
+    charSlot.add(model);
+    fallback.visible = false;
+    charSceneRoot = model;
+    modelReady = true;
+    applySkin(); // 正式模型加载完，立刻穿上保存的皮肤
+  }, undefined, () => { /* 重试也失败：保留备用小人，不阻塞游戏 */ });
+}
 
 // ---------- Boss 模型（奶龙）预加载 ----------
 let bossTemplate = null;
