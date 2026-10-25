@@ -396,6 +396,15 @@ new GLTFLoader().load(
     applySkin(); // 正式模型加载完，立刻穿上保存的皮肤
   },
   undefined,
+  (p) => { // 加载进度：显示在启动提示层
+    const el = document.getElementById('boot-progress');
+    if (el && p.total > 0) {
+      const pct = Math.min(100, Math.round((p.loaded / p.total) * 100));
+      el.textContent = `正在加载噜噜模型… ${pct}%`;
+    } else if (el) {
+      el.textContent = `正在加载噜噜模型… ${(p.loaded / 1048576).toFixed(1)}MB`;
+    }
+  },
   () => { /* 加载失败继续用备用小人 */ }
 );
 
