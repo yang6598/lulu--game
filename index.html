@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
+  <title>是噜噜吗？</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body { width: 100%; height: 100%; overflow: hidden; }
+    body {
+      font-family: "Microsoft YaHei", "PingFang SC", sans-serif;
+      background: #2b1d3a;
+      user-select: none;
+      -webkit-user-select: none;
+      touch-action: none;
+    }
+    canvas { display: block; }
+
+    /* ---------- 顶部 HUD ---------- */
+    #hud {
+      position: fixed;
+      top: 16px;
+      left: 0;
+      right: 0;
+      display: flex;
+      justify-content: center;
+      gap: 14px;
+      pointer-events: none;
+      z-index: 10;
+    }
+    .hud-box {
+      background: rgba(255, 248, 235, 0.9);
+      border-radius: 14px;
+      padding: 8px 20px;
+      font-size: 20px;
+      font-weight: bold;
+      color: #7a4a1e;
+      box-shadow: 0 3px 10px rgba(40, 20, 60, 0.35);
+      transition: transform 0.15s;
+    }
+    .hud-box.pop { transform: scale(1.2); }
+
+    /* ---------- 遮罩层 ---------- */
+    #overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(50, 25, 55, 0.5);
+      backdrop-filter: blur(5px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 20;
+    }
+    #overlay.hidden { display: none; }
+    .panel {
+      background: linear-gradient(160deg, #fff6e8, #ffe8c8);
+      border-radius: 26px;
+      padding: 42px 52px;
+      text-align: center;
+      box-shadow: 0 12px 50px rgba(0,0,0,0.4);
+      max-width: 92vw;
+    }
+    .panel h1 {
+      font-size: 38px;
+      color: #c96a1e;
+      margin-bottom: 10px;
+      text-shadow: 0 2px 0 #ffd9a0;
+    }
+    .panel p {
+      font-size: 16px;
+      color: #8a6a4a;
+      line-height: 1.9;
+      margin-bottom: 18px;
+    }
+    .final-score {
+      font-size: 58px;
+      font-weight: bold;
+      color: #e8802a;
+      margin: 6px 0 18px;
+    }
+    .panel button {
+      font-size: 22px;
+      font-weight: bold;
+      color: #fff;
+      background: linear-gradient(135deg, #ffb347, #e8742a);
+      border: none;
+      border-radius: 999px;
+      padding: 14px 56px;
+      cursor: pointer;
+      box-shadow: 0 5px 0 #b85a18;
+      transition: transform 0.1s;
+    }
+    .panel button:active { transform: translateY(4px); box-shadow: 0 1px 0 #b85a18; }
+
+    /* ---------- Boss 血条 ---------- */
+    #boss-bar {
+      position: fixed; top: 18px; left: 50%; transform: translateX(-50%);
+      width: min(560px, 70vw); display: none; z-index: 16;
+      text-align: center; pointer-events: none;
+    }
+    #boss-bar.show { display: block; }
+    #boss-name {
+      color: #ffd28a; font-size: 20px; font-weight: bold;
+      text-shadow: 0 2px 0 #601c08, 0 0 18px rgba(255, 100, 30, 0.8);
+      margin-bottom: 6px; letter-spacing: 0.1em;
+    }
+    #boss-track {
+      height: 22px; border-radius: 12px;
+      background: rgba(40, 10, 5, 0.75);
+      border: 2px solid #ffb060; overflow: hidden;
+      box-shadow: 0 4px 20px rgba(255, 80, 30, 0.45);
+    }
+    #boss-fill {
+      height: 100%; width: 100%;
+      background: linear-gradient(90deg, #ff4a2a, #ffa030);
+      transition: width 0.25s;
+    }
+
+    /* ---------- 特殊事件横幅 ---------- */
+    #event-banner {
+      position: fixed; top: 80px; left: 50%; transform: translateX(-50%);
+      background: linear-gradient(135deg, #ff9a3c, #ff5e8a);
+      color: #fff; font-size: 24px; font-weight: bold;
+      padding: 12px 36px; border-radius: 999px;
+      box-shadow: 0 6px 24px rgba(255, 100, 60, 0.5);
+      opacity: 0; transition: opacity 0.4s, transform 0.4s;
+      pointer-events: none; z-index: 15; white-space: nowrap;
+    }
+
+    /* ---------- 暴走氛围 ---------- */
+    #fever-tint {
+      position: fixed; inset: 0; pointer-events: none; z-index: 5;
+      background: radial-gradient(ellipse at center, transparent 55%, rgba(255, 80, 40, 0.35) 100%);
+      opacity: 0; transition: opacity 0.5s;
+    }
+
+    /* ---------- 区域剧情 ---------- */
+    #story-box {
+      position: fixed; left: 50%; bottom: 12%; transform: translateX(-50%);
+      max-width: 80vw; background: rgba(30, 20, 40, 0.82);
+      color: #ffe8c8; font-size: 17px; line-height: 1.8;
+      padding: 14px 28px; border-radius: 16px;
+      border: 1px solid rgba(255, 200, 140, 0.4);
+      opacity: 0; transition: opacity 0.5s;
+      pointer-events: none; z-index: 15; text-align: center;
+    }
+
+    /* ---------- 电影黑边 / 白闪 ---------- */
+    #cine-top, #cine-bottom {
+      position: fixed; left: 0; right: 0; height: 0;
+      background: #000; z-index: 30; transition: height 0.8s;
+    }
+    #cine-top { top: 0; } #cine-bottom { bottom: 0; }
+    #white-flash {
+      position: fixed; inset: 0; background: #fff;
+      opacity: 0; pointer-events: none; z-index: 40; transition: opacity 0.4s;
+    }
+
+    /* ---------- 过场对白 ---------- */
+    #cut-dialog {
+      position: fixed; left: 50%; bottom: 9%; transform: translateX(-50%);
+      width: min(640px, 88vw); background: rgba(18, 12, 26, 0.88);
+      border: 1px solid rgba(255, 200, 140, 0.45); border-radius: 16px;
+      padding: 16px 24px; z-index: 35; display: none; cursor: pointer;
+    }
+    #cut-who { color: #ffb060; font-weight: bold; font-size: 15px; margin-bottom: 6px; }
+    #cut-text { color: #fff2e0; font-size: 17px; line-height: 1.8; min-height: 54px; }
+    #cut-hint { color: #9a8070; font-size: 12px; text-align: right; margin-top: 4px; }
+
+    /* ---------- 互动选择 ---------- */
+    #cut-choice {
+      position: fixed; left: 50%; top: 55%; transform: translateX(-50%);
+      display: none; flex-direction: column; gap: 12px;
+      z-index: 36; width: min(400px, 84vw);
+    }
+    #cut-choice button {
+      font-size: 17px; font-weight: bold; color: #fff;
+      border: none; border-radius: 999px; padding: 13px 20px; cursor: pointer;
+    }
+    #choice-a { background: linear-gradient(135deg, #ff9a3c, #e8742a); box-shadow: 0 4px 0 #b85a18; }
+    #choice-b { background: linear-gradient(135deg, #7ab0ff, #4a6ae8); box-shadow: 0 4px 0 #2a4ab8; }
+
+    /* ---------- 跳过按钮 ---------- */
+    #skip-btn {
+      position: fixed; top: 18px; right: 18px; z-index: 36; display: none;
+      color: #c0a890; background: rgba(20, 12, 24, 0.6);
+      border: 1px solid #6a5548; border-radius: 999px;
+      padding: 8px 20px; font-size: 14px; cursor: pointer;
+    }
+
+    /* ---------- 商店 ---------- */
+    #shop-btn {
+      position: fixed; top: 16px; left: 16px; z-index: 25;
+      font-size: 16px; font-weight: bold; color: #7a4a1e;
+      background: rgba(255, 248, 235, 0.92); border: none;
+      border-radius: 999px; padding: 10px 22px; cursor: pointer;
+      box-shadow: 0 3px 10px rgba(40, 20, 60, 0.35);
+    }
+    #shop-btn:hover { transform: scale(1.05); }
+    #music-btn {
+      position: fixed; bottom: 16px; right: 16px; z-index: 45;
+      font-size: 14px; font-weight: bold; color: #7a4a1e;
+      background: rgba(255, 248, 235, 0.92); border: none;
+      border-radius: 999px; padding: 9px 18px; cursor: pointer;
+      box-shadow: 0 3px 10px rgba(40, 20, 60, 0.35);
+    }
+    #music-btn:hover { transform: scale(1.05); }
+    #shop-panel {
+      position: fixed; inset: 0; z-index: 60; display: none;
+      align-items: center; justify-content: flex-end;
+      padding-right: 3vw;
+      background: linear-gradient(90deg, rgba(40,20,45,0) 45%, rgba(40,20,45,0.45) 70%);
+      /* 左侧留空让噜噜露出来，换肤实时可见 */
+    }
+    #shop-panel.open { display: flex; }
+    .shop-box {
+      background: linear-gradient(160deg, #fff6e8, #ffe8c8);
+      border-radius: 26px; padding: 26px 30px; text-align: center;
+      box-shadow: 0 12px 50px rgba(0,0,0,0.45); width: min(460px, 92vw); max-height: 88vh; overflow-y: auto;
+    }
+    .shop-box h2 { color: #c96a1e; font-size: 28px; margin-bottom: 6px; }
+    .shop-tip { color: #9a7a58; font-size: 14px; margin-bottom: 18px; }
+    #skin-list { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-bottom: 20px; }
+    .skin-card {
+      background: #fffaf0; border-radius: 18px; padding: 14px 10px;
+      border: 3px solid transparent; cursor: pointer; transition: transform 0.12s, border-color 0.12s;
+    }
+    .skin-card:hover { transform: translateY(-3px); }
+    .skin-card.equipped { border-color: #ff9a2a; background: #fff2d8; }
+    .skin-color {
+      width: 52px; height: 52px; border-radius: 50%; margin: 0 auto 8px;
+      box-shadow: inset -6px -8px 0 rgba(0,0,0,0.12), 0 3px 8px rgba(0,0,0,0.15);
+    }
+    .skin-name { font-size: 15px; font-weight: bold; color: #6a4a2a; }
+    .skin-price { font-size: 13px; color: #b08050; margin-top: 4px; }
+    .skin-price.owned { color: #4aa060; font-weight: bold; }
+
+    /* ---------- 右键必杀技：角落大橘子（不挡噜噜特写） ---------- */
+    #big-orange {
+      position: fixed; top: 11vh; right: 4vw;
+      display: flex; flex-direction: column; align-items: center; gap: 0.5vmin;
+      pointer-events: none; z-index: 45; opacity: 0;
+    }
+    #big-orange .orange-ball {
+      font-size: 13vmin; line-height: 1;
+      filter: drop-shadow(0 0 30px rgba(255, 150, 30, 0.85));
+    }
+    #big-orange .orange-word {
+      font-size: 2.4vmin; font-weight: bold; color: #ff8a2a;
+      text-shadow: 0 2px 0 #fff0d0, 0 0 16px rgba(255, 140, 40, 0.9);
+      letter-spacing: 0.15em; white-space: nowrap;
+    }
+    #big-orange.show { animation: bigOrange 1.3s ease-out forwards; }
+    @keyframes bigOrange {
+      0%   { opacity: 0; transform: scale(0.25) rotate(-20deg); }
+      25%  { opacity: 1; transform: scale(1.12) rotate(4deg); }
+      55%  { opacity: 1; transform: scale(1.0) rotate(0deg); }
+      100% { opacity: 0; transform: scale(1.5) rotate(6deg); }
+    }
+
+    /* ---------- 操作提示 ---------- */
+    #ctrl-hint {
+      position: fixed; left: 50%; top: 12%; transform: translateX(-50%);
+      background: rgba(255, 248, 235, 0.9); color: #7a4a1e;
+      font-size: 16px; font-weight: bold; padding: 10px 26px;
+      border-radius: 999px; opacity: 0; transition: opacity 0.6s;
+      pointer-events: none; z-index: 14; white-space: nowrap;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- 启动自检：这行字能看见 = 页面正常；游戏画面几秒内出现后自动隐藏 -->
+  <div id="boot-hint" style="position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:50;background:#2b1d3a;color:#ffe8c8;text-align:center;padding:20px;">
+    <div style="font-size:26px;font-weight:bold;margin-bottom:14px;">🍊 正在启动《是噜噜吗？》…</div>
+    <div id="boot-msg" style="font-size:15px;line-height:2;color:#c0a890;max-width:560px;">
+      正在加载引擎和 3D 模型（模型有 44MB，第一次要等 5~20 秒）…<br />
+      如果这个画面停留超过 1 分钟，请看下面的说明 ↓
+    </div>
+    <div id="boot-error" style="display:none;font-size:15px;line-height:2;color:#ff9a8a;max-width:600px;margin-top:18px;"></div>
+  </div>
+
+  <div id="hud">
+    <div class="hud-box">距离 <span id="dist">0</span> m</div>
+    <div class="hud-box">🍊 <span id="coins">0</span></div>
+    <div class="hud-box">💥 <span id="smash">0</span></div>
+  </div>
+
+  <button id="shop-btn">🛒 商店 · 🍊<span id="shop-balance">0</span></button>
+  <button id="music-btn">🎵 音乐开</button>
+
+  <!-- 商店面板 -->
+  <div id="shop-panel">
+    <div class="shop-box">
+      <h2>🛒 噜噜皮肤商店</h2>
+      <p class="shop-tip">用跑酷收集的橘子买新皮肤，购买后永久保存～</p>
+      <div id="skin-list"></div>
+      <button id="shop-close">继续游戏</button>
+    </div>
+  </div>
+
+  <div id="event-banner"><span id="event-text"></span></div>
+  <div id="boss-bar">
+    <div id="boss-name">🐉 野生奶龙</div>
+    <div id="boss-track"><div id="boss-fill"></div></div>
+  </div>
+  <div id="big-orange"><span class="orange-ball">🍊</span><span class="orange-word">橘子大爆发！！</span></div>
+  <div id="fever-tint"></div>
+  <div id="story-box"><span id="story-text"></span></div>
+  <div id="ctrl-hint"></div>
+
+  <div id="cine-top"></div>
+  <div id="cine-bottom"></div>
+  <div id="white-flash"></div>
+
+  <div id="cut-dialog">
+    <div id="cut-who"></div>
+    <div id="cut-text"></div>
+    <div id="cut-hint">▼ 点击继续</div>
+  </div>
+
+  <div id="cut-choice">
+    <button id="choice-a"></button>
+    <button id="choice-b"></button>
+  </div>
+
+  <button id="skip-btn">跳过动画 ≫</button>
+
+  <div id="overlay" class="hidden">
+    <div class="panel" id="end-panel">
+      <h1 id="end-title">跑不动啦！</h1>
+      <p id="end-story"></p>
+      <div class="final-score"><span id="final-score">0</span> 分</div>
+      <p id="final-detail"></p>
+      <button id="restart-btn">再试一次</button>
+    </div>
+  </div>
+
+  <!-- 全局错误捕获：任何报错都显示在启动层，方便排查 -->
+  <script>
+    window.addEventListener('error', function (e) {
+      var err = document.getElementById('boot-error');
+      if (!err) return;
+      err.style.display = 'block';
+      err.innerHTML += '❌ 游戏报错：' + (e.message || '未知错误') + '<br /><span style="font-size:12px;color:#c0a890">（把这个红字截图发给 AI 助手即可修复）</span><br />';
+    });
+    window.addEventListener('unhandledrejection', function (e) {
+      var err = document.getElementById('boot-error');
+      if (!err) return;
+      err.style.display = 'block';
+      err.innerHTML += '❌ 资源加载失败：' + (e.reason && e.reason.message ? e.reason.message : e.reason) + '<br />';
+    });
+  </script>
+
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+      "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+    }
+  }
+  </script>
+  <script type="module" src="./main.js"></script>
+</body>
+</html>
